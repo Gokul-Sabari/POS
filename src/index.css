@@ -1,0 +1,33 @@
+/* src/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CRITICAL: Force HTML and body to take full height and remove default browser margins */
+html, body, #root {
+  height: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background-color: #f3f4f6 !important; /* Equivalent to Tailwind's bg-gray-100 */
+  overflow-x: hidden !important;
+}
+
+/* Ensure App container takes full viewport */
+.App {
+  min-height: 100vh !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Force all pages to take full height */
+.page-container, .main-layout, .pos-container {
+  min-height: 100vh !important;
+  width: 100% !important;
+}
+
+/* Remove any max-width constraints that might be limiting the layout */
+.container, .mx-auto {
+  max-width: none !important;
+}
