@@ -809,8 +809,86 @@ const UnifiedSearchModal = ({
     const abortControllerRef = useRef(null);
     const isInitialMountRef = useRef(true);
     const lastRequestRef = useRef({ page: null, search: null, searchType: null });
+    const [allData, setAllData] = useState([]);
 
-    
+    // Create a normalized version of the text for searching (remove dots, spaces, etc.)
+    const normalizeForSearch = useCallback((text) => {
+        if (!text) return '';
+        return text
+            .toUpperCase()
+            .replace(/[.\s\-_\/,()]/g, '')
+            .trim();
+    }, []);
+
+    // Enhanced search function that matches normalized versions but returns original data
+    const searchInData = useCallback((searchTerm, dataArray) => {
+        if (!searchTerm.trim()) return dataArray;
+        
+        const normalizedSearch = normalizeForSearch(searchTerm);
+        
+        return dataArray.filter(item => {
+            // Check all relevant fields for this searchType
+            const fieldsToCheck = [];
+            
+            switch (searchType) {
+                case 'customer':
+                    fieldsToCheck.push(
+                        item.originalData?.Billl_Name || item.name,
+                        item.originalData?.Short_Name || item.shortName,
+                        item.originalData?.Customer_Id?.toString() || item.id?.toString(),
+                        item.originalData?.Mobile_No || item.mobile
+                    );
+                    break;
+                case 'broker':
+                    fieldsToCheck.push(
+                        item.originalData?.Broker_Name || item.name,
+                        item.originalData?.Broker_Id?.toString() || item.id?.toString(),
+                        item.originalData?.Mobile_No || item.mobile
+                    );
+                    break;
+                case 'transport':
+                    fieldsToCheck.push(
+                        item.originalData?.Transporter_Name || item.name,
+                        item.originalData?.Transporter_Id?.toString() || item.id?.toString(),
+                        item.originalData?.Vehicle_No || item.vehicleNo
+                    );
+                    break;
+            }
+            
+            // Check if any field contains the search term (normalized comparison)
+            return fieldsToCheck.some(field => {
+                if (!field) return false;
+                
+                const normalizedField = normalizeForSearch(field);
+                
+                // Direct substring match
+                if (normalizedField.includes(normalizedSearch)) {
+                    return true;
+                }
+                
+                // Also check if search is a substring of the field
+                if (normalizedSearch.includes(normalizedField)) {
+                    return true;
+                }
+                
+                // For short searches like "AAA" - check if it matches beginning of any word
+                if (normalizedSearch.length <= 3) {
+                    const words = field.toUpperCase().split(/[.\s\-_\/,()]+/);
+                    return words.some(word => word.startsWith(normalizedSearch));
+                }
+                
+                // For searches with dots
+                if (searchTerm.includes('.')) {
+                    const fieldWithoutDots = field.replace(/\./g, '');
+                    const searchWithoutDots = searchTerm.replace(/\./g, '');
+                    return fieldWithoutDots.toUpperCase().includes(searchWithoutDots.toUpperCase());
+                }
+                
+                return false;
+            });
+        });
+    }, [searchType, normalizeForSearch]);
+
     useEffect(() => {
         const timer = setTimeout(() => {
             setSearchDebounced(searchValue);
@@ -831,7 +909,9 @@ const UnifiedSearchModal = ({
                         mobile: customer.Mobile_No,
                         city: customer.City,
                         type: 'customer',
-                        originalData: customer
+                        originalData: customer,
+                        normalizedName: normalizeForSearch(customer.Billl_Name),
+                        normalizedShortName: normalizeForSearch(customer.Short_Name)
                     }));
                 }
                 return [];
@@ -845,7 +925,8 @@ const UnifiedSearchModal = ({
                         city: broker.City || '',
                         address: broker.Address || '',
                         type: 'broker',
-                        originalData: broker
+                        originalData: broker,
+                        normalizedName: normalizeForSearch(broker.Broker_Name)
                     }));
                 }
                 return [];
@@ -860,7 +941,8 @@ const UnifiedSearchModal = ({
                         address: transport.Address || '',
                         vehicleNo: transport.Vehicle_No || '',
                         type: 'transport',
-                        originalData: transport
+                        originalData: transport,
+                        normalizedName: normalizeForSearch(transport.Transporter_Name)
                     }));
                 }
                 return [];
@@ -868,21 +950,10 @@ const UnifiedSearchModal = ({
             default:
                 return [];
         }
-    }, []);
+    }, [normalizeForSearch]);
 
- 
-    const fetchData = async (page, search = '') => {
-     
-        if (lastRequestRef.current.page === page && 
-            lastRequestRef.current.search === search && 
-            lastRequestRef.current.searchType === searchType) {
-          
-            return;
-        }
-        
-        lastRequestRef.current = { page, search, searchType };
-        
-     
+    // Fetch all data once and filter locally
+    const fetchAllData = useCallback(async () => {
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
         }
@@ -893,15 +964,7 @@ const UnifiedSearchModal = ({
         setLoading(true);
         
         let apiEndpoint = '';
-        const params = {
-            page: page,
-            limit: ITEMS_PER_PAGE
-        };
-
-        if (search && search.trim() !== '') {
-            params.search = search;
-        }
-
+        
         switch (searchType) {
             case 'customer':
                 apiEndpoint = 'pos/retailerMasterOpt';
@@ -918,43 +981,85 @@ const UnifiedSearchModal = ({
         }
 
         try {
-       
-            
-            const responseData = await fetchLink({
+            // First fetch count to decide if we need pagination
+            const countResponse = await fetchLink({
                 address: apiEndpoint,
                 method: "GET",
-                params: params,
-                others: {
-                    signal: currentAbortController.signal
-                }
+                params: { limit: 1, page: 1 },
+                others: { signal: currentAbortController.signal }
             });
             
-
-            if (currentAbortController.signal.aborted) {
-               
-                return;
-            }
+            if (currentAbortController.signal.aborted) return;
             
-            if (responseData?.success) {
-                const transformedData = transformData(responseData, searchType);
+            const totalRecords = countResponse?.pagination?.totalRecords || 0;
+            
+            if (totalRecords > 500) {
+                // For large datasets, use server-side search with pagination
+                const params = {
+                    page: currentPage,
+                    limit: ITEMS_PER_PAGE
+                };
+
+                if (searchDebounced && searchDebounced.trim() !== '') {
+                    params.search = searchDebounced;
+                }
+
+                const responseData = await fetchLink({
+                    address: apiEndpoint,
+                    method: "GET",
+                    params: params,
+                    others: { signal: currentAbortController.signal }
+                });
+
+                if (currentAbortController.signal.aborted) return;
                 
-                setData(transformedData);
-                
-                if (responseData.pagination) {
-                    setTotalItems(responseData.pagination.totalRecords);
-                    setTotalPages(responseData.pagination.totalPages);
-                } else {
-                    setTotalItems(transformedData.length);
-                    setTotalPages(Math.ceil(transformedData.length / ITEMS_PER_PAGE));
+                if (responseData?.success) {
+                    const transformedData = transformData(responseData, searchType);
+                    
+                    setData(transformedData);
+                    
+                    if (responseData.pagination) {
+                        setTotalItems(responseData.pagination.totalRecords);
+                        setTotalPages(responseData.pagination.totalPages);
+                    } else {
+                        setTotalItems(transformedData.length);
+                        setTotalPages(Math.ceil(transformedData.length / ITEMS_PER_PAGE));
+                    }
                 }
             } else {
-                setData([]);
-                setTotalItems(0);
-                setTotalPages(0);
+                // For smaller datasets, fetch all at once
+                const allDataResponse = await fetchLink({
+                    address: apiEndpoint,
+                    method: "GET",
+                    params: { limit: totalRecords || 500, page: 1 },
+                    others: { signal: currentAbortController.signal }
+                });
+                
+                if (currentAbortController.signal.aborted) return;
+                
+                if (allDataResponse?.success) {
+                    const transformedAllData = transformData(allDataResponse, searchType);
+                    setAllData(transformedAllData);
+                    
+                    // Apply search filter
+                    let filteredData = transformedAllData;
+                    if (searchDebounced.trim()) {
+                        filteredData = searchInData(searchDebounced, transformedAllData);
+                    }
+                    
+                    // Apply pagination
+                    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+                    const endIndex = startIndex + ITEMS_PER_PAGE;
+                    const paginatedData = filteredData.slice(startIndex, endIndex);
+                    
+                    setData(paginatedData);
+                    setTotalItems(filteredData.length);
+                    setTotalPages(Math.ceil(filteredData.length / ITEMS_PER_PAGE));
+                }
             }
         } catch (error) {
             if (error.name === 'AbortError') {
-              
+                // Request was cancelled, ignore
             } else {
                 console.error('Error fetching data:', error);
                 setData([]);
@@ -964,65 +1069,78 @@ const UnifiedSearchModal = ({
         } finally {
             setLoading(false);
         }
-    };
+    }, [searchType, searchDebounced, currentPage, transformData, searchInData]);
 
+    // Handle local filtering when search changes (for small datasets)
+    useEffect(() => {
+        if (allData.length > 0 && allData.length <= 500) {
+            let filteredData = allData;
+            if (searchDebounced.trim()) {
+                filteredData = searchInData(searchDebounced, allData);
+            }
+            
+            const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+            const endIndex = startIndex + ITEMS_PER_PAGE;
+            const paginatedData = filteredData.slice(startIndex, endIndex);
+            
+            setData(paginatedData);
+            setTotalItems(filteredData.length);
+            setTotalPages(Math.ceil(filteredData.length / ITEMS_PER_PAGE));
+        }
+    }, [searchDebounced, currentPage, allData, searchInData]);
 
     useEffect(() => {
-  
-        
-
+        // Reset states when searchType changes
         setSearchValue('');
         setSearchDebounced('');
         setCurrentPage(1);
         setData([]);
+        setAllData([]);
         setTotalItems(0);
         setTotalPages(0);
         
-
         lastRequestRef.current = { page: null, search: null, searchType: null };
 
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
         }
         
-   
         isInitialMountRef.current = true;
         
-      
         const timer = setTimeout(() => {
-            fetchData(1, '');
+            fetchAllData();
             isInitialMountRef.current = false;
         }, 100);
         
         return () => clearTimeout(timer);
     }, [searchType]);
 
-
     useEffect(() => {
- 
         if (isInitialMountRef.current) {
-          
             return;
         }
         
- 
         if (!searchType) return;
-      
+        
+        // If we have all data stored locally, just trigger the filtering effect
+        if (allData.length > 0 && allData.length <= 500) {
+            return;
+        }
+        
+        // For large datasets or first load, fetch from server
         const timer = setTimeout(() => {
-            fetchData(currentPage, searchDebounced);
+            fetchAllData();
         }, 200);
         
         return () => {
             clearTimeout(timer);
         };
-    }, [currentPage, searchDebounced, searchType]); 
+    }, [currentPage, searchDebounced, searchType]);
 
-   
     const handlePageChange = (newPage) => {
         if (newPage === currentPage || loading) return;
         setCurrentPage(newPage);
     };
-
 
     const handleKeyClick = (key) => {
         setSearchValue(prevValue => {
@@ -1034,19 +1152,20 @@ const UnifiedSearchModal = ({
     };
 
     const getSearchPlaceholder = () => {
-        switch (searchType) {
-            case 'customer': return 'Search customer by name or mobile...';
-            case 'broker': return 'Search broker by name...';
-            case 'transport': return 'Search transporter by name or vehicle...';
-            default: return 'Search...';
-        }
+        const examples = {
+            // customer: "Search 'AAA' to find 'A.AATHIRAJAN', 'A.Aathiyappan', 'AAA MART', etc.",
+            // broker: "Search by name with or without dots/spaces",
+            // transport: "Search by name with or without dots/spaces"
+        };
+        
+        return examples[searchType] || 'Search...';
     };
 
     const getModalTitle = () => {
         switch (searchType) {
-            case 'customer': return 'SELECT CUSTOMER';
-            case 'broker': return 'SELECT BROKER';
-            case 'transport': return 'SELECT TRANSPORTER';
+            case 'customer': return 'SELECT CUSTOMER (Smart Search)';
+            case 'broker': return 'SELECT BROKER (Smart Search)';
+            case 'transport': return 'SELECT TRANSPORTER (Smart Search)';
             default: return 'SEARCH';
         }
     };
@@ -1055,9 +1174,9 @@ const UnifiedSearchModal = ({
         switch (searchType) {
             case 'customer':
                 return [
-                    { width: 'w-1/4', label: 'ID' },
-                    { width: 'w-1/2', label: 'Name' },
-                    { width: 'w-1/4', label: 'Mobile' }
+                    { width: 'w-1/6', label: 'ID' },
+                    { width: 'w-2/3', label: 'Name' },
+                    { width: 'w-1/6', label: 'Mobile' }
                 ];
             case 'broker':
                 return [
@@ -1105,6 +1224,33 @@ const UnifiedSearchModal = ({
     const renderItemRow = (item, index) => {
         const headers = getColumnHeaders();
         
+        // Highlight search term in the name
+        const highlightSearchTerm = (text) => {
+            if (!searchValue || searchValue.length < 2) return text;
+            
+            const normalizedText = normalizeForSearch(text);
+            const normalizedSearch = normalizeForSearch(searchValue);
+            
+            // Find where the normalized search appears in normalized text
+            const searchIndex = normalizedText.indexOf(normalizedSearch);
+            
+            if (searchIndex === -1) return text;
+            
+            // We need to find the actual characters in original text
+            // This is complex, so we'll do a simpler highlight for now
+            return (
+                <span>
+                    {text.split('').map((char, i) => {
+                        const normalizedChar = normalizeForSearch(char);
+                        if (normalizedSearch.includes(normalizedChar)) {
+                            return <span key={i} className="bg-yellow-200 font-bold">{char}</span>;
+                        }
+                        return char;
+                    })}
+                </span>
+            );
+        };
+        
         return (
             <div 
                 key={`${item.id}-${index}-${currentPage}`}
@@ -1112,17 +1258,22 @@ const UnifiedSearchModal = ({
                 onClick={() => handleItemSelect(item)}
             >
                 {headers.map((header, idx) => (
-                    <div key={idx} className={header.width}>
+                    <div key={idx} className={`${header.width} flex items-center`}>
                         {searchType === 'customer' && idx === 0 && (
-                            <div className="text-gray-600 font-medium">{item.id}</div>
+                            <div className="text-gray-600 font-medium text-sm">{item.id}</div>
                         )}
                         {searchType === 'customer' && idx === 1 && (
-                            <div className="font-semibold text-gray-800 truncate" title={item.shortName}>
-                                {item.shortName || item.name}
+                            <div className="font-semibold text-gray-800 truncate" title={item.name}>
+                                {item.name}
+                                {item.shortName && item.shortName !== item.name && (
+                                    <div className="text-xs text-gray-500 mt-1 truncate">
+                                        ({item.shortName})
+                                    </div>
+                                )}
                             </div>
                         )}
                         {searchType === 'customer' && idx === 2 && (
-                            <div className="text-gray-600">{item.mobile}</div>
+                            <div className="text-gray-600 text-sm">{item.mobile}</div>
                         )}
                         
                         {searchType === 'broker' && idx === 0 && (
@@ -1350,19 +1501,29 @@ const UnifiedSearchModal = ({
                             {loading ? (
                                 <div className="text-center py-10">
                                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
-                                    <p className="text-gray-500 mt-2">Loading {searchType}s... (Page {currentPage})</p>
+                                    <p className="text-gray-500 mt-2">Searching... (Smart matching enabled)</p>
                                 </div>
                             ) : (
                                 <>
                                     <div className="text-xs text-gray-500 px-3 py-1 bg-blue-50 flex justify-between">
+                                        {/* <span> */}
+                                            {/* Search: "{searchValue || 'All'}" •  */}
+                                            {/* Found {totalItems} {searchType}s •  */}
+                                            {/* <span className="ml-2 text-green-600"> */}
+                                                {/* Smart search: Matches with/without dots/spaces */}
+                                            {/* </span> */}
+                                        {/* </span> */}
                                         <span>Page {currentPage} of {totalPages}</span>
-                                        <span>Showing {data.length} items</span>
                                     </div>
                                     {data.map((item, index) => renderItemRow(item, index))}
                                     {data.length === 0 && !loading && (
-                                        <p className="text-center text-gray-500 py-10">
-                                            No {searchType}s {searchValue ? 'match your search' : 'found'}.
-                                        </p>
+                                        <div className="text-center text-gray-500 py-10">
+                                            <p>No {searchType}s found for "{searchValue}".</p>
+                                            <p className="text-sm mt-2">
+                                                {/* Try searching without dots or spaces.<br/> */}
+                                                {/* Example: Search "AAA" for "A.AATHIRAJAN" or "A ATHIRAJAN" */}
+                                            </p>
+                                        </div>
                                     )}
                                 </>
                             )}
