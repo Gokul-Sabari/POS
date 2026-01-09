@@ -1183,10 +1183,16 @@ const UnifiedSearchModal = ({
                         )}
                         {searchType === 'customer' && idx === 1 && (
                             <div className="font-semibold text-gray-800 truncate" title={item.name}>
-                                {item.name}
-                                {item.shortName && item.shortName !== item.name && (
+                                {item.shortName}
+                                {/* {item.shortName && item.shortName !== item.name && (
                                     <div className="text-xs text-gray-500 mt-1 truncate">
                                         ({item.shortName})
+                                    </div>
+                                )} */}
+
+                                {item.name && item.name !== item.shortName && (
+                                    <div className="text-xs text-gray-500 mt-1 truncate">
+                                        ({item.name})
                                     </div>
                                 )}
                             </div>
