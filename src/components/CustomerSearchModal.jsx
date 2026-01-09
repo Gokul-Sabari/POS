@@ -966,7 +966,7 @@ const UnifiedSearchModal = ({
             const res = await fetchLink({
                 address: apiMap[searchType],
                 method: 'GET',
-                params: { limit: 500, page: 1 },
+                params: { limit: 10000000, page: 1 },
                 others: { signal: abortControllerRef.current.signal }
             });
 
