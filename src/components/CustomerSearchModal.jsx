@@ -791,6 +791,15 @@ const tamilKeyboardLayout = [
 ];
 
 const ITEMS_PER_PAGE = 12;
+
+
+const removeSplChar = (text = '') =>
+    text
+        .toString()
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '');
+
+
 const UnifiedSearchModal = ({ 
     onClose, 
     onCustomerSelect, 
@@ -811,7 +820,9 @@ const UnifiedSearchModal = ({
     const lastRequestRef = useRef({ page: null, search: null, searchType: null });
     const [allData, setAllData] = useState([]);
 
-    // Create a normalized version of the text for searching (remove dots, spaces, etc.)
+
+    
+
     const normalizeForSearch = useCallback((text) => {
         if (!text) return '';
         return text
@@ -820,74 +831,47 @@ const UnifiedSearchModal = ({
             .trim();
     }, []);
 
-    // Enhanced search function that matches normalized versions but returns original data
-    const searchInData = useCallback((searchTerm, dataArray) => {
+ 
+  const searchInData = useCallback((searchTerm, dataArray) => {
         if (!searchTerm.trim()) return dataArray;
-        
-        const normalizedSearch = normalizeForSearch(searchTerm);
-        
+
+        const normalizedSearch = removeSplChar(searchTerm);
+
         return dataArray.filter(item => {
-            // Check all relevant fields for this searchType
-            const fieldsToCheck = [];
-            
+            let fields = [];
+
             switch (searchType) {
                 case 'customer':
-                    fieldsToCheck.push(
-                        item.originalData?.Billl_Name || item.name,
-                        item.originalData?.Short_Name || item.shortName,
-                        item.originalData?.Customer_Id?.toString() || item.id?.toString(),
-                        item.originalData?.Mobile_No || item.mobile
-                    );
+                    fields = [
+                        item.originalData?.Billl_Name,
+                        item.originalData?.Short_Name,
+                        item.originalData?.Customer_Id,
+                        item.originalData?.Mobile_No
+                    ];
                     break;
+
                 case 'broker':
-                    fieldsToCheck.push(
-                        item.originalData?.Broker_Name || item.name,
-                        item.originalData?.Broker_Id?.toString() || item.id?.toString(),
-                        item.originalData?.Mobile_No || item.mobile
-                    );
+                    fields = [
+                        item.originalData?.Broker_Name,
+                        item.originalData?.Broker_Id,
+                        item.originalData?.Mobile_No
+                    ];
                     break;
+
                 case 'transport':
-                    fieldsToCheck.push(
-                        item.originalData?.Transporter_Name || item.name,
-                        item.originalData?.Transporter_Id?.toString() || item.id?.toString(),
-                        item.originalData?.Vehicle_No || item.vehicleNo
-                    );
+                    fields = [
+                        item.originalData?.Transporter_Name,
+                        item.originalData?.Transporter_Id,
+                        item.originalData?.Vehicle_No
+                    ];
                     break;
             }
-            
-            // Check if any field contains the search term (normalized comparison)
-            return fieldsToCheck.some(field => {
-                if (!field) return false;
-                
-                const normalizedField = normalizeForSearch(field);
-                
-                // Direct substring match
-                if (normalizedField.includes(normalizedSearch)) {
-                    return true;
-                }
-                
-                // Also check if search is a substring of the field
-                if (normalizedSearch.includes(normalizedField)) {
-                    return true;
-                }
-                
-                // For short searches like "AAA" - check if it matches beginning of any word
-                if (normalizedSearch.length <= 3) {
-                    const words = field.toUpperCase().split(/[.\s\-_\/,()]+/);
-                    return words.some(word => word.startsWith(normalizedSearch));
-                }
-                
-                // For searches with dots
-                if (searchTerm.includes('.')) {
-                    const fieldWithoutDots = field.replace(/\./g, '');
-                    const searchWithoutDots = searchTerm.replace(/\./g, '');
-                    return fieldWithoutDots.toUpperCase().includes(searchWithoutDots.toUpperCase());
-                }
-                
-                return false;
-            });
+
+            return fields.some(field =>
+                removeSplChar(field).includes(normalizedSearch)
+            );
         });
-    }, [searchType, normalizeForSearch]);
+    }, [searchType]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -897,6 +881,17 @@ const UnifiedSearchModal = ({
 
         return () => clearTimeout(timer);
     }, [searchValue]);
+
+     useEffect(() => {
+        const timer = setTimeout(() => {
+            setSearchDebounced(searchValue);
+            setCurrentPage(1);
+        }, 400);
+
+        return () => clearTimeout(timer);
+    }, [searchValue]);
+
+
 
     const transformData = useCallback((response, type) => {
         switch (type) {
@@ -952,126 +947,53 @@ const UnifiedSearchModal = ({
         }
     }, [normalizeForSearch]);
 
-    // Fetch all data once and filter locally
-    const fetchAllData = useCallback(async () => {
+
+   const fetchAllData = useCallback(async () => {
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
         }
-        
+
         abortControllerRef.current = new AbortController();
-        const currentAbortController = abortControllerRef.current;
-        
         setLoading(true);
-        
-        let apiEndpoint = '';
-        
-        switch (searchType) {
-            case 'customer':
-                apiEndpoint = 'pos/retailerMasterOpt';
-                break;
-            case 'broker':
-                apiEndpoint = 'pos/brokersOpt';
-                break;
-            case 'transport':
-                apiEndpoint = 'pos/transportersOpt';
-                break;
-            default:
-                setLoading(false);
-                return;
-        }
+
+        const apiMap = {
+            customer: 'pos/retailerMasterOpt',
+            broker: 'pos/brokersOpt',
+            transport: 'pos/transportersOpt'
+        };
 
         try {
-            // First fetch count to decide if we need pagination
-            const countResponse = await fetchLink({
-                address: apiEndpoint,
-                method: "GET",
-                params: { limit: 1, page: 1 },
-                others: { signal: currentAbortController.signal }
+            const res = await fetchLink({
+                address: apiMap[searchType],
+                method: 'GET',
+                params: { limit: 500, page: 1 },
+                others: { signal: abortControllerRef.current.signal }
             });
-            
-            if (currentAbortController.signal.aborted) return;
-            
-            const totalRecords = countResponse?.pagination?.totalRecords || 0;
-            
-            if (totalRecords > 500) {
-                // For large datasets, use server-side search with pagination
-                const params = {
-                    page: currentPage,
-                    limit: ITEMS_PER_PAGE
-                };
 
-                if (searchDebounced && searchDebounced.trim() !== '') {
-                    params.search = searchDebounced;
-                }
+            const transformed = transformData(res, searchType);
+            setAllData(transformed);
 
-                const responseData = await fetchLink({
-                    address: apiEndpoint,
-                    method: "GET",
-                    params: params,
-                    others: { signal: currentAbortController.signal }
-                });
+            const filtered = searchDebounced
+                ? searchInData(searchDebounced, transformed)
+                : transformed;
 
-                if (currentAbortController.signal.aborted) return;
-                
-                if (responseData?.success) {
-                    const transformedData = transformData(responseData, searchType);
-                    
-                    setData(transformedData);
-                    
-                    if (responseData.pagination) {
-                        setTotalItems(responseData.pagination.totalRecords);
-                        setTotalPages(responseData.pagination.totalPages);
-                    } else {
-                        setTotalItems(transformedData.length);
-                        setTotalPages(Math.ceil(transformedData.length / ITEMS_PER_PAGE));
-                    }
-                }
-            } else {
-                // For smaller datasets, fetch all at once
-                const allDataResponse = await fetchLink({
-                    address: apiEndpoint,
-                    method: "GET",
-                    params: { limit: totalRecords || 500, page: 1 },
-                    others: { signal: currentAbortController.signal }
-                });
-                
-                if (currentAbortController.signal.aborted) return;
-                
-                if (allDataResponse?.success) {
-                    const transformedAllData = transformData(allDataResponse, searchType);
-                    setAllData(transformedAllData);
-                    
-                    // Apply search filter
-                    let filteredData = transformedAllData;
-                    if (searchDebounced.trim()) {
-                        filteredData = searchInData(searchDebounced, transformedAllData);
-                    }
-                    
-                    // Apply pagination
-                    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-                    const endIndex = startIndex + ITEMS_PER_PAGE;
-                    const paginatedData = filteredData.slice(startIndex, endIndex);
-                    
-                    setData(paginatedData);
-                    setTotalItems(filteredData.length);
-                    setTotalPages(Math.ceil(filteredData.length / ITEMS_PER_PAGE));
-                }
-            }
-        } catch (error) {
-            if (error.name === 'AbortError') {
-                // Request was cancelled, ignore
-            } else {
-                console.error('Error fetching data:', error);
-                setData([]);
-                setTotalItems(0);
-                setTotalPages(0);
+            const start = (currentPage - 1) * ITEMS_PER_PAGE;
+            const paginated = filtered.slice(start, start + ITEMS_PER_PAGE);
+
+            setData(paginated);
+            setTotalItems(filtered.length);
+            setTotalPages(Math.ceil(filtered.length / ITEMS_PER_PAGE));
+
+        } catch (err) {
+            if (err.name !== 'AbortError') {
+                console.error(err);
             }
         } finally {
             setLoading(false);
         }
-    }, [searchType, searchDebounced, currentPage, transformData, searchInData]);
+    }, [searchType, searchDebounced, currentPage, searchInData]);
 
-    // Handle local filtering when search changes (for small datasets)
+
     useEffect(() => {
         if (allData.length > 0 && allData.length <= 500) {
             let filteredData = allData;
@@ -1090,7 +1012,7 @@ const UnifiedSearchModal = ({
     }, [searchDebounced, currentPage, allData, searchInData]);
 
     useEffect(() => {
-        // Reset states when searchType changes
+
         setSearchValue('');
         setSearchDebounced('');
         setCurrentPage(1);
@@ -1122,12 +1044,12 @@ const UnifiedSearchModal = ({
         
         if (!searchType) return;
         
-        // If we have all data stored locally, just trigger the filtering effect
+ 
         if (allData.length > 0 && allData.length <= 500) {
             return;
         }
         
-        // For large datasets or first load, fetch from server
+ 
         const timer = setTimeout(() => {
             fetchAllData();
         }, 200);
@@ -1153,9 +1075,7 @@ const UnifiedSearchModal = ({
 
     const getSearchPlaceholder = () => {
         const examples = {
-            // customer: "Search 'AAA' to find 'A.AATHIRAJAN', 'A.Aathiyappan', 'AAA MART', etc.",
-            // broker: "Search by name with or without dots/spaces",
-            // transport: "Search by name with or without dots/spaces"
+         
         };
         
         return examples[searchType] || 'Search...';
@@ -1224,20 +1144,19 @@ const UnifiedSearchModal = ({
     const renderItemRow = (item, index) => {
         const headers = getColumnHeaders();
         
-        // Highlight search term in the name
+
         const highlightSearchTerm = (text) => {
             if (!searchValue || searchValue.length < 2) return text;
             
             const normalizedText = normalizeForSearch(text);
             const normalizedSearch = normalizeForSearch(searchValue);
             
-            // Find where the normalized search appears in normalized text
+          
             const searchIndex = normalizedText.indexOf(normalizedSearch);
             
             if (searchIndex === -1) return text;
-            
-            // We need to find the actual characters in original text
-            // This is complex, so we'll do a simpler highlight for now
+
+
             return (
                 <span>
                     {text.split('').map((char, i) => {
@@ -1381,7 +1300,7 @@ const UnifiedSearchModal = ({
                     </button>
                     
                     <div className="flex items-center space-x-1">
-                        {/* First page */}
+         
                         {startPage > 1 && (
                             <>
                                 <button
@@ -1397,7 +1316,7 @@ const UnifiedSearchModal = ({
                             </>
                         )}
 
-                        {/* Page numbers */}
+              
                         {Array.from({ length: endPage - startPage + 1 }, (_, i) => {
                             const pageNum = startPage + i;
                             return (
@@ -1416,7 +1335,7 @@ const UnifiedSearchModal = ({
                             );
                         })}
 
-                        {/* Last page */}
+     
                         {endPage < totalPages && (
                             <>
                                 {endPage < totalPages - 1 && <span className="px-2">...</span>}
