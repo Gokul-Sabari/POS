@@ -1231,8 +1231,8 @@ const SalesOrderHistory = () => {
                         return {
                             id: product.Item_Id,
                             name: product.Product_Name || 'Item N/A',
-                            Print_Name: product.Product_Name || 'Item N/A',
-                            Product_Name: product.Product_Name || 'Item N/A',
+                            Print_Name: product.Product_Short_Name || 'Item N/A',
+                            Product_Name: product.Product_Short_Name || 'Item N/A',
                             qty: parseFloat(Qty || 0),
                             price: parseFloat(product.Item_Rate || 0),
                             packGet: parseFloat(packGet || 0),
