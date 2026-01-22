@@ -29,6 +29,9 @@ const POSScreen = () => {
     const [selectedVoucherType, setSelectedVoucherType] = useState("POS SALE ORDER");
     const [allProducts, setAllProducts] = useState([]);
       const location = useLocation(); 
+
+        const localData = localStorage.getItem("user");
+         const parseData = JSON.parse(localData);
     const [customer, setCustomer] = useState({
         Above_30Days: '',
         Address: '',
@@ -545,7 +548,10 @@ useEffect(() => {
             const response = await fetchLink({
                 address: `sales/saleOrder`,
                 method: 'POST',
-                bodyData: saleData
+                bodyData:{ 
+                    ...saleData,
+                    Created_by:parseData?.UserId
+                }
             });
 
             if (response?.success) {
@@ -627,7 +633,12 @@ useEffect(() => {
                         <div className="text-xl bg-white text-teal-700 p-1.5 rounded-full w-9 h-9 flex items-center justify-center font-bold shadow-md">
                             👤
                         </div>
-                        <span className="text-xl font-bold text-gray-100">{storage?.UserName}</span>
+                        {/* <span className="text-xl font-bold text-gray-100">{storage?.UserName}- {(storage?.Name)}</span> */}
+                        <span className="text-xl font-bold text-gray-100">
+  {storage?.UserName}
+  {storage?.UserTypeId !== '0' && ` - ${storage?.Name}`}
+</span>
+
                     </div>
                 </div>
                 
