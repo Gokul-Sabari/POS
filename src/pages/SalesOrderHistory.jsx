@@ -1350,8 +1350,9 @@ const SalesOrderHistory = () => {
             console.error("Order is undefined");
             return;
         }
+
         
-        // Use cached retailers data for instant response
+    
         if (retailersData) {
             const retailer = retailersData.find(r => r.Ret_Id == order.retailerId);
             
@@ -1360,19 +1361,19 @@ const SalesOrderHistory = () => {
                     ...order,
                     Billl_Name: retailer.Party_Mailing_Name || order.Billl_Name || order.Bill_Name || '',
                     Land_Line: retailer.Party_Mobile_1 || retailer.Party_Mobile_2 || order.Land_Line || '',
-                    location: retailer.Party_Location || order.location || ''
+                    location: retailer.Party_Location || order.location || '',
+                   
                 };
                 setOrderToPrint(modifiedOrder);
             } else {
-                // Fallback to original order if retailer not found
+               
                 setOrderToPrint(order);
             }
         } else {
-            // If data not loaded yet, use original order
-            // This happens instantly without waiting for API call
+        
             setOrderToPrint(order);
             
-            // Load retailers in background for next time
+            
             if (!retailersCache.isLoading) {
                 fetchLink({ address: 'masters/getlolDetails' })
                     .then(response => {
@@ -1407,6 +1408,7 @@ const SalesOrderHistory = () => {
 
     const getPrintData = () => {
         if (!orderToPrint) return null;
+
          
         const subtotal = orderToPrint.beforeTax || orderToPrint.items.reduce((sum, item) => sum + (item.amount || 0), 0);
         const tax = orderToPrint.tax || 0;
@@ -1451,9 +1453,12 @@ const SalesOrderHistory = () => {
                 total: total,
                 roundOff: orderToPrint.rawData?.Round_off || 0,
             },
-            storage: {
-                UserName: storage?.UserName || 'User'
-            }
+           storage: {
+            UserName: storage?.UserName || 'User',
+            // Add Created_BY_Name to storage
+            Created_BY_Name: orderToPrint.rawData?.Created_BY_Name || storage?.UserName || '—',
+            Created_on: orderToPrint.rawData?.Created_on || orderToPrint.date || new Date().toISOString()
+        }
         };
     };
 
@@ -1473,6 +1478,9 @@ const SalesOrderHistory = () => {
     }, [filteredOrders.length]);
 
     return (
+
+
+    
         <div className="h-full bg-gray-50 p-4 sm:p-6 font-sans overflow-hidden flex flex-col">
             <FilterModal
                 show={isFilterModalOpen}
@@ -1493,9 +1501,14 @@ const SalesOrderHistory = () => {
                     storage={getPrintData()?.storage}
                     orderInfo={getPrintData()?.orderInfo}
                     isReprint={true}
+                    orderData={{
+            Created_BY_Name: orderToPrint.rawData?.Created_BY_Name || storage?.UserName || '—',
+            Created_on: orderToPrint.rawData?.Created_on || orderToPrint.date || new Date().toISOString()
+        }}
                 />
             )}
 
+    
             {/* Delete Confirmation Modal */}
             {showDeleteConfirm && (
                 <div className="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 flex items-center justify-center p-4 backdrop-blur-sm">

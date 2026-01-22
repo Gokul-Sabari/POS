@@ -1,4 +1,4 @@
-import React, { forwardRef, useRef,useState } from "react";
+import React, { forwardRef, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogTitle, Button, DialogActions } from '@mui/material';
 import { useReactToPrint } from 'react-to-print';
 import { getSessionUser } from "../components/functions";
@@ -19,357 +19,253 @@ const QuotationPrint = forwardRef(({ customer, cartItems, totals, storage }, ref
       style={{
         width: "80mm",
         fontFamily: "Courier New, monospace",
-        fontSize: "13px",
-        padding: "3mm", 
-        lineHeight: 1.4,
+        fontSize: "12px",
+        padding: "2mm", 
+        lineHeight: 1.2,
         color: "#000",
-        fontWeight: "bold", 
       }}
     >
 
-  
+    
       <div style={{ 
         textAlign: "center", 
-        fontWeight: "950", 
-        borderBottom: "3px solid #000",
-        marginBottom: "4mm", 
+        fontWeight: 900,
         fontSize: "18px", 
-        paddingBottom: "3mm",
-        textTransform: "uppercase",
+        paddingBottom: "1.5mm", 
+        marginBottom: "2mm",
+        borderBottom: "1px solid #000",
         letterSpacing: "1px"
       }}>
         QUOTATION
       </div>
 
-
-      <div style={{ 
-        display: "flex", 
-        justifyContent: "space-between", 
-        marginBottom: "3mm", 
-        minHeight: "5mm", 
-        borderBottom: "2px solid #000",
-        paddingBottom: "2mm",
-        fontWeight: "950",
-        fontSize: "12px" 
-      }}>
-        <div><strong>DATE:</strong> {new Date().toLocaleDateString("en-GB")}/{new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</div>
-        <div><strong>TAKEN:</strong> {storage?.UserName}</div>
-      </div>
-
-
-      <div style={{ 
-        display: "flex", 
-        alignItems: "center", 
-        marginBottom: "3mm", 
-        minHeight: "5mm",
-        fontWeight: "950"
-      }}>
-        <span style={{ 
-          minWidth: "25mm", 
-          fontWeight: 950,
-          marginRight: "2mm", 
-          fontSize: "13px"
-        }}>PARTY NAME:</span>
+      <div style={{ marginBottom: "1.5mm" }}>
         <div style={{ 
-          flex: 1, 
-          minHeight: "4mm", 
-          fontSize: "13px", 
-          fontWeight: "950"
-        }}>{customer?.Billl_Name || customer?.Short_Name || "—"}</div>
-      </div>
-
-      <div style={{ 
-        display: "flex", 
-        alignItems: "center", 
-        marginBottom: "3mm", 
-        minHeight: "5mm",
-        fontWeight: "950"
-      }}>
-        <span style={{ 
-          minWidth: "25mm", 
-          fontWeight: 950, 
-          marginRight: "2mm", 
-          fontSize: "13px" 
-        }}>LOCATION:</span>
-        <div style={{ 
-          flex: 1, 
-          minHeight: "4mm", 
-          fontSize: "13px",
-          fontWeight: "950"
+          marginBottom: "1mm", 
+          fontSize: "14px", 
+          fontWeight: 700 
         }}>
-          {[customer?.Party_Location, customer?.City].filter(Boolean).join(", ") || "—"}
+          <strong>DATE:</strong> {new Date().toLocaleDateString("en-GB")} / {new Date().toLocaleTimeString("en-IN", { 
+            hour: "2-digit", 
+            minute: "2-digit",
+            hour12: true 
+          })}
+        </div>
+        <div style={{ 
+          fontSize: "14px", 
+          fontWeight: 700 
+        }}>
+         <strong>TAKEN:</strong> {storage?.Created_BY_Name || storage?.Name || "—"}
         </div>
       </div>
 
+      {/* Info Section */}
       <div style={{ 
-        display: "flex", 
-        alignItems: "center", 
-        marginBottom: "3mm", 
-        minHeight: "5mm",
-        fontWeight: "950"
+        borderTop: "1px solid #000",
+        borderBottom: "1px solid #000",
+        padding: "1mm 0",
+        marginBottom: "2mm"
       }}>
-        <span style={{ 
-          minWidth: "25mm", 
-          fontWeight: 950, 
-          marginRight: "2mm", 
-          fontSize: "13px" 
-        }}>PH.NO:</span>
+        {/* Party Name */}
         <div style={{ 
-          flex: 1, 
-          minHeight: "4mm", 
-          fontSize: "13px",
-          fontWeight: "950"
-        }}>{customer?.Mobile_No || customer?.Land_Line || "—"}</div>
+          fontSize: "14px", 
+          fontWeight: 800, 
+          padding: "0.5mm 0",
+          lineHeight: 1.1
+        }}>
+          {customer?.Billl_Name || customer?.Short_Name || "—"}
+        </div>
+
+        {/* Location and Phone - First Row */}
+        <div style={{ 
+          display: "flex", 
+          justifyContent: "space-between",
+          padding: "0.5mm 0" 
+        }}>
+          <div style={{ 
+            flex: 1, 
+            fontSize: "14px", 
+            fontWeight: 700,
+            marginRight: "2mm"
+          }}>
+            {[customer?.Party_Location, customer?.City].filter(Boolean).join(", ") || "—"}
+          </div>
+          <div style={{ 
+            flex: 1, 
+            fontSize: "14px", 
+            fontWeight: 700 
+          }}>
+            {customer?.Mobile_No || customer?.Land_Line || "—"}
+          </div>
+        </div>
+
+        {/* Transport and Broker - Second Row */}
+        <div style={{ 
+          display: "flex", 
+          justifyContent: "space-between",
+          padding: "0.5mm 0" 
+        }}>
+          <div style={{ 
+            flex: 1, 
+            fontSize: "14px", 
+            fontWeight: 700,
+            marginRight: "2mm"
+          }}>
+            {customer?.Transporter || "—"}
+          </div>
+          <div style={{ 
+            flex: 1, 
+            fontSize: "14px", 
+            fontWeight: 700 
+          }}>
+            {customer?.Broker || "—"}
+          </div>
+        </div>
       </div>
 
-      <div style={{ 
-        display: "flex", 
-        alignItems: "center", 
-        marginBottom: "3mm", 
-        minHeight: "5mm",
-        fontWeight: "950"
-      }}>
-        <span style={{ 
-          minWidth: "25mm", 
-          fontWeight: 950, 
-          marginRight: "2mm", 
-          fontSize: "13px" 
-        }}>TRANSPORT:</span>
-        <div style={{ 
-          flex: 1, 
-          minHeight: "4mm", 
-          fontSize: "13px",
-          fontWeight: "950"
-        }}>{customer?.Transporter || "—"}</div>
-      </div>
-
-      <div style={{ 
-        display: "flex", 
-        alignItems: "center", 
-        marginBottom: "4mm", 
-        minHeight: "5mm",
-        fontWeight: "950"
-      }}>
-        <span style={{ 
-          minWidth: "25mm", 
-          fontWeight: 950, 
-          marginRight: "2mm", 
-          fontSize: "13px" 
-        }}>BROKER:</span>
-        <div style={{ 
-          flex: 1, 
-          minHeight: "4mm", 
-          fontSize: "13px",
-          fontWeight: "950"
-        }}>{customer?.Broker || "—"}</div>
-      </div>
-
-
- <table style={{ 
-    width: "100%", 
-    borderCollapse: "collapse", 
-    marginTop: "4mm", 
-    border: "3px solid #000", 
-    fontSize: "15px", 
-    fontWeight: "950" 
-}}>
-    <thead>
-        <tr>
-            <th style={{ 
-                width: "5%", // EXTREMELY SMALL
-                border: "2px solid #000", 
-                padding: "1mm", // Minimal padding
-                background: "#e0e0e0", 
-                fontWeight: "950", 
-                fontSize: "15px", // Very small font
-                height: "6mm",
-                textTransform: "uppercase"
-            }}>RATE</th>
-            <th style={{ 
-                width: "85%", // MAXIMUM POSSIBLE
-                border: "2px solid #000", 
-                padding: "2mm",
-                background: "#e0e0e0",
-                fontWeight: "950",
-                fontSize: "13px",
-                height: "7mm",
-                textTransform: "uppercase"
-            }}>ITEM NAME</th>
-            <th style={{ 
-                width: "10%", // EXTREMELY SMALL
-                border: "2px solid #000", 
-                padding: "1mm", // Minimal padding
-                background: "#e0e0e0",
-                fontWeight: "950",
-                fontSize: "15px", // Very small font
-                height: "6mm",
-                textTransform: "uppercase"
-            }}>BAGS</th>
-        </tr>
-    </thead>
-    <tbody>
-        {cartItems && cartItems.length > 0 ? (
-            cartItems.map((item, i) => (
-                <tr key={i} style={{ height: "6mm", fontWeight: "950" }}>
+      {/* Table Container */}
+      <div style={{ border: "0.5px solid #000" }}>
+        <table style={{ 
+          width: "100%", 
+          borderCollapse: "collapse" 
+        }}>
+          <thead>
+            <tr>
+              <th style={{ 
+                border: "0.5px solid #000", 
+                padding: "0.5mm", 
+                textAlign: "center", 
+                fontSize: "14px", 
+                fontWeight: 800,
+                background: "#f5f5f5"
+              }}>RATE</th>
+              <th style={{ 
+                border: "0.5px solid #000", 
+                padding: "0.5mm", 
+                textAlign: "center", 
+                fontSize: "14px", 
+                fontWeight: 800,
+                background: "#f5f5f5"
+              }}>ITEM NAME</th>
+              <th style={{ 
+                border: "0.5px solid #000", 
+                padding: "0.5mm", 
+                textAlign: "center", 
+                fontSize: "14px", 
+                fontWeight: 800,
+                background: "#f5f5f5"
+              }}>BAGS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {cartItems && cartItems.length > 0 ? (
+              cartItems.map((item, i) => {
+                const packWeight = parseFloat(item.Print_Name?.match(/(\d+(?:\.\d+)?)\s*KG/i)?.[1]) || 0;
+                const bags = packWeight > 0 ? safeNum(item.kgs) / packWeight : 0;
+                
+                return (
+                  <tr key={i} style={{ minHeight: "8mm" }}>
                     <td style={{ 
-                        border: "2px solid #000", 
-                        textAlign: "center", 
-                        verticalAlign: "top", 
-                        padding: "1mm", // Minimal padding
-                        fontWeight: "850", 
-                        fontSize: "13px", // Very small font
-                        width: "15%" // EXTREMELY SMALL
-                    }}>₹{rupee(item.price)}</td>
+                      border: "0.5px solid #000", 
+                      padding: "2mm 1mm",
+                      textAlign: "center", 
+                      verticalAlign: "middle",
+                      width: "25mm",
+                      fontSize: "14px",
+                      fontWeight: 700
+                    }}>
+                      ₹{rupee(item.price)}
+                    </td>
                     <td style={{ 
-                        border: "2px solid #000", 
-                        textAlign: "left", 
-                        padding: "2mm",
-                        paddingLeft: "2mm",
-                        fontWeight: "950",
-                        fontSize: "15px",
-                        width: "80%" // MAXIMUM POSSIBLE
+                      border: "0.5px solid #000", 
+                      textAlign: "left", 
+                      paddingLeft: "1.5mm",
+                      verticalAlign: "middle",
+                      width: "60mm",
+                      fontSize: "14px",
+                      fontWeight: 700
                     }}>{item.Print_Name}</td>
                     <td style={{ 
-                        border: "2px solid #000", 
-                        textAlign: "center", 
-                        padding: "0.5mm", 
-                        fontWeight: "950",
-                        fontSize: "15px", 
-                        width: "15%" 
-                    }}>{Number(item.qty).toFixed(0)}</td>
+                      border: "0.5px solid #000", 
+                      textAlign: "center", 
+                      padding: "0.3mm",
+                      verticalAlign: "middle",
+                      width: "12mm",
+                      fontSize: "14px",
+                      fontWeight: 700
+                    }}>{bags > 0 ? bags.toFixed(0) : "0"}</td>
+                  </tr>
+                );
+              })
+            ) : (
+              Array.from({ length: 8 }).map((_, i) => (
+                <tr key={i} style={{ minHeight: "8mm" }}>
+                  <td style={{ border: "0.5px solid #000", width: "25mm" }}></td>
+                  <td style={{ border: "0.5px solid #000", width: "60mm" }}></td>
+                  <td style={{ border: "0.5px solid #000", width: "12mm" }}></td>
                 </tr>
-            ))
-        ) : (
-            Array.from({ length: 8 }).map((_, i) => (
-                <tr key={i} style={{ height: "6mm" }}>
-                    <td style={{ border: "2px solid #000", height: "6mm", width: "5%" }}></td>
-                    <td style={{ border: "2px solid #000", height: "6mm", width: "85%" }}></td>
-                    <td style={{ border: "2px solid #000", height: "6mm", width: "10%" }}></td>
-                </tr>
-            ))
-        )}
-      
-        <tr style={{ 
-            fontWeight: "950", 
-            background: "#d0d0d0", 
-            borderTop: "3px solid #000" 
-        }}>
-            <td style={{ 
-                // border: "2px solid #000", 
-                // textAlign: "center",
-                padding: "1mm",
-                fontWeight: "950",
-                fontSize: "11px",
-                width: "10%" // Consistent width
-            }}>
-                <strong>₹{rupee(totals?.subtotal)}</strong>
-            </td>
-            <td style={{ 
-                // border: "2px solid #000", 
-                textAlign: "center",
-                // padding: "2mm",
-                fontWeight: "950",
-                fontSize: "13px",
-                width: "80%" // Consistent width
-            }}>
-                <strong>
-                    {cartItems && cartItems.length > 0 
-                        ? cartItems.reduce((sum, item) => sum + safeNum(item.kgs), 0).toFixed(2)
-                        : "0.00"
-                    } KGS
-                </strong>
-            </td>
-            <td style={{ 
-                // border: "2px solid #000", 
-                textAlign: "center",
-                padding: "2mm",
-                fontWeight: "950",
-                fontSize: "13px",
-                width: "10%" // Consistent width
-            }}>
-                <strong>
-                    {cartItems && cartItems.length > 0 
-                        ? cartItems.reduce((sum, item) => sum + safeNum(item.qty), 0).toFixed(0)
-                        : "0"
-                    }
-                </strong>
-            </td>
-        </tr>
-    </tbody>
-</table>
-       {/* <table>
-          <tbody>
-            <tr style={{ 
-            fontWeight: "950", 
-            background: "#d0d0d0", 
-            border: "3px solid #000", 
-            borderTop:"0px solid #000"
-        }}>
-            <td style={{ 
-                // border: "2px solid #000", 
-                // textAlign: "center",
-                padding: "2mm",
-                fontWeight: "950",
-                fontSize: "11px",
-                width: "10%" // Consistent width
-            }}>
-                <strong>₹{rupee(totals?.subtotal)}</strong>
-            </td>
-            <td style={{ 
-                // border: "2px solid #000", 
-                textAlign: "center",
-                padding: "2mm",
-                fontWeight: "950",
-                fontSize: "13px",
-                width: "80%" // Consistent width
-            }}>
-                <strong>
-                    {cartItems && cartItems.length > 0 
-                        ? cartItems.reduce((sum, item) => sum + safeNum(item.kgs), 0).toFixed(2)
-                        : "0.00"
-                    } KGS
-                </strong>
-            </td>
-            <td style={{ 
-                // border: "2px solid #000", 
-                textAlign: "center",
-                padding: "1mm",
-                fontWeight: "950",
-                fontSize: "13px",
-                width: "10%" // Consistent width
-            }}>
-                <strong>
-                    {cartItems && cartItems.length > 0 
-                        ? cartItems.reduce((sum, item) => sum + safeNum(item.qty), 0).toFixed(0)
-                        : "0"
-                    }
-                </strong>
-            </td>
-        </tr>
+              ))
+            )}
           </tbody>
-        </table> */}
+        </table>
+
+      
+  <div
+  style={{
+    background: "#f0f0f0",
+    border: "1px solid #000",
+    padding: "1mm",
+    display: "grid",
+    gridTemplateColumns: "40px 1fr 30px", 
+    alignItems: "center",
+    fontSize: "12px",
+    fontWeight: "bold"
+  }}
+>
+
+  <div style={{ textAlign: "center" }}>
+    ₹{rupee(totals?.subtotal)}
+  </div>
+
+ 
+  <div style={{ textAlign: "center" }}>
+    {cartItems?.length
+      ? cartItems
+          .reduce((sum, item) => sum + safeNum(item.kgs), 0)
+          .toFixed(2)
+      : "0.00"}{" "}
+    KGS
+  </div>
+
+
+  <div style={{ textAlign: "center" }}>
+    {cartItems?.length
+      ? cartItems
+          .reduce((sum, item) => {
+            const packWeight =
+              parseFloat(
+                item.Print_Name?.match(/(\d+(?:\.\d+)?)\s*KG/i)?.[1]
+              ) || 0;
+            return sum + (packWeight ? safeNum(item.kgs) / packWeight : 0);
+          }, 0)
+          .toFixed(0)
+      : "0"}
+  </div>
+</div>
+
+      </div>
     </div>
   );
 });
 
 QuotationPrint.displayName = "QuotationPrint";
 
-const PrintPreviewModal = ({ open, onClose, customer, cartItems, totals, onPrintAndSave, storage,   isReprint = false }) => {
+const PrintPreviewModal = ({ open, onClose, customer, cartItems, totals, onPrintAndSave, storage, isReprint = false }) => {
   
   const printRef = useRef();
-  const[isPrinting,setIsPrinting]=useState(false)
-  const handlePrint = useReactToPrint({
-    contentRef: printRef, 
-    documentTitle: "QuotationBill",
-    onAfterPrint: () => {
-      toast.success("Print completed successfully");
-    },
-    onError: (err) => {
-      console.error("Print Error:", err);
-      toast.error("Print failed");
-    },
-  });
- const handleReactPrint = useReactToPrint({
+  const [isPrinting, setIsPrinting] = useState(false);
+  
+  const handleReactPrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: "QuotationBill",
     onBeforeGetContent: () => {
@@ -385,20 +281,17 @@ const PrintPreviewModal = ({ open, onClose, customer, cartItems, totals, onPrint
       toast.error("Print failed");
     },
   });
+  
   const handlePrintAndSave = async () => {
     setIsPrinting(true);
     try {
       if (isReprint) {
-     
-
         await handleReactPrint(); 
         toast.success("Order reprinted successfully");
         return true;
       } else {
-    
         const result = await onPrintAndSave();
         if (result) {
-    
           await handleReactPrint();
         }
         return result;
@@ -412,8 +305,6 @@ const PrintPreviewModal = ({ open, onClose, customer, cartItems, totals, onPrint
     }
   };
 
-
- 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle style={{ fontWeight: "bold", fontSize: "20px" }}>
